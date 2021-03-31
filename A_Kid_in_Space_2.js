@@ -31,6 +31,7 @@ var game = new Phaser.Game(config);
 // -- Acteurs Vivants --
 
 var maya
+var maya2
 
 
 
@@ -40,7 +41,8 @@ function preload(){
 
     // -- Acteurs Vivants --
 
-    this.load.spritesheet('maya', 'assets/maya/MayaBase1.png', {frameWidth : 128, frameHeight:128});
+    this.load.spritesheet('maya', 'assets/maya/MayaBase1.png', {frameWidth : 64, frameHeight : 64});
+    this.load.spritesheet('maya2', 'assets/maya/MayaBase2.png', {frameWidth : 128, frameHeight : 128});
 
 }
 
@@ -50,7 +52,8 @@ function create(){
 
     // -- Acteurs Vivants --
 
-    maya = this.physics.create(400, 400, 'maya');
+    maya = this.physics.add.sprite(400, 400, 'maya');
+    maya2 = this.physics.add.sprite(600, 600, 'maya2');
 
 
 }
