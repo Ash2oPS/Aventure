@@ -11,7 +11,7 @@ const config = {
         default: 'arcade',
         arcade:{
             //gravity: {},
-            debug: false
+            debug: true
         }
     },
     input : {gamepad:true},
@@ -30,12 +30,19 @@ const config = {
 
 var game = new Phaser.Game(config);
 
+var debugText;
+
 var cursors;
 
-// -- Joueur --
+// -- player --
 
-var joueur;
-var joueurWalkspeed;
+var player;
+var playerWalkspeed;
+var playerIsMoving;
+var currentX;
+var nextX;
+var currentY;
+var nextY;
 
 
 ////////// PRELOAD //////////
@@ -49,7 +56,7 @@ function preload(){
 
     // -- Acteurs Vivants --
 
-    this.load.spritesheet('joueur', 'assets/maya/MayaBase2.png', {frameWidth : 128, frameHeight : 128});
+    this.load.spritesheet('player', 'assets/player/gator.png', {frameWidth : 100, frameHeight : 100});
 
 }
 
@@ -60,6 +67,19 @@ function preload(){
 ////////// CREATE //////////
 
 function create(){
+
+    // -- Debugtext --
+    if (config.physics.arcade.debug){
+        debugText = this.add.text(100, 100,"debug", {
+            fontSize: '24px',
+            padding: { x: 10, y: 5 },
+            backgroundColor: '#000000',
+            fill: '#ffffff'
+        });
+        debugText.setScrollFactor(0)
+        .setOrigin(0, 0)
+        .setDepth(2);
+    }
 
     // -- Tiled --
 
@@ -79,16 +99,23 @@ function create(){
         right:Phaser.Input.Keyboard.KeyCodes.D});
 
 
-    // -- Joueur --
+    // -- player --
 
-    joueur = this.physics.add.sprite(100, 100, 'joueur');
-    joueurWalkspeed = 3;
+    player = this.physics.add.sprite(750, 470, 'player')
+    .setOrigin(.5, 1);
+    playerWalkspeed = 5;
+    playerIsMoving = false;
+    currentX = 0;
+    nextX = 0;
+    currentY = 0;
+    nextY = 0;
+    
 
 
     // -- Camera --
 
-    this.cameras.main.startFollow(joueur);
-    this.cameras.main.setBounds(0, 0, joueur.widthInPixels, joueur.heightInPixels);
+    this.cameras.main.startFollow(player);
+    this.cameras.main.setBounds(0, 0, player.widthInPixels, player.heightInPixels);
 
 
 }
@@ -101,61 +128,101 @@ function create(){
 
 function update(){
 
-    deplacementsJoueur();                                   //Le joueur se déplace (ZQSD/LStick)
+    // DEBUG TEXT
+    if (config.physics.arcade.debug){
+        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX
+        );
+    }
+
+    //
+
+    deplacementsPlayer();                                   //Le player se déplace (ZQSD/LStick)
+    playerMoves();
 
 
 }
 
 
-
-
-
 ////////// FUNCTIONS //////////
 
-function deplacementsJoueur(){
+function deplacementsPlayer(){
 
-
-    // -- Diagonales (anti straff acceleration (selon le théorème de Pythagore)) --
-
-
-    if (cursors.right.isDown && cursors.up.isDown && !cursors.left.isDown && !cursors.down.isDown){
-        joueur.x += joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale haut doite                     
-        joueur.y -= joueurWalkspeed/Math.sqrt(2); 
-    }
-
-    else if (cursors.left.isDown && cursors.up.isDown && !cursors.down.isDown && !cursors.right.isDown){
-        joueur.x -= joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale haut gauche                      
-        joueur.y -= joueurWalkspeed/Math.sqrt(2);                       
-    }
-
-    else if (cursors.down.isDown && cursors.left.isDown && !cursors.up.isDown && !cursors.right.isDown){
-        joueur.x -= joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale bas gauche                      
-        joueur.y += joueurWalkspeed/Math.sqrt(2);                       
-    }
-
-    else if (cursors.down.isDown && cursors.right.isDown && !cursors.left.isDown && !cursors.up.isDown){
-        joueur.x += joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale bas droite                      
-        joueur.y += joueurWalkspeed/Math.sqrt(2);                         
-    }
-
-    // -- Déplacements Horizontaux Verticaux --
-
-
-    else if (cursors.right.isDown && !cursors.left.isDown && !cursors.down.isDown && !cursors.up.isDown){
-        joueur.x += joueurWalkspeed;                        // Déplacement vers la droite
+    if (cursors.right.isDown && !cursors.left.isDown && !cursors.down.isDown && !cursors.up.isDown){
+        if (!playerIsMoving){
+            currentX = player.x;
+            nextX = player.x + 100;
+            playerIsMoving = true;
+        }
     }
 
     else if (cursors.left.isDown && !cursors.right.isDown && !cursors.down.isDown && !cursors.up.isDown){
-        joueur.x -= joueurWalkspeed;                        // Déplacement vers la gauche
+        if (!playerIsMoving){
+            currentX = player.x;
+            nextX = player.x - 100;
+            playerIsMoving = true;
+        }
     }
 
     else if (cursors.down.isDown && !cursors.left.isDown && !cursors.up.isDown && !cursors.right.isDown){
-        joueur.y += joueurWalkspeed;                        // Déplacement vers le bas
+        if (!playerIsMoving){
+            currentY = player.y;
+            nextY = player.y + 100;
+            playerIsMoving = true;
+        }
     }
 
     else if (cursors.up.isDown && !cursors.left.isDown && !cursors.down.isDown && !cursors.right.isDown){
-        joueur.y -= joueurWalkspeed;                        // Déplacement vers le haut
+        if (!playerIsMoving){
+            currentY = player.y;
+            nextY = player.y - 100;
+            playerIsMoving = true;
+        }
     }
     
 
+}
+
+function playerMoves(){
+    if (playerIsMoving){
+
+        if (currentX <= nextX && currentX != 0){
+
+            if (player.x < nextX)  player.x += playerWalkspeed;
+            else{
+                playerIsMoving = false;
+
+            }
+
+        } else if (currentX >= nextX && currentX != 0){
+
+            if (player.x > nextX)  player.x -= playerWalkspeed;
+            else{
+                playerIsMoving = false;
+
+            }
+
+        } else if (currentY <= nextY && currentY != 0){
+
+            if (player.y < nextY)  player.y += playerWalkspeed;
+            else{
+                playerIsMoving = false;
+
+            }
+
+        } else if (currentY >= nextY && currentY != 0){
+
+            if (player.y > nextY)  player.y -= playerWalkspeed;
+            else{
+                playerIsMoving = false;
+
+            }
+
+        }
+
+    } else{
+        currentX = 0;
+        nextX = 0;
+        currentY = 0;
+        nextY = 0;
+    }
 }
