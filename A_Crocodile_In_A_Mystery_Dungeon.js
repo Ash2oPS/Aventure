@@ -38,15 +38,14 @@ var joueur;
 var joueurWalkspeed;
 
 
-
-
-
-
-
-
 ////////// PRELOAD //////////
 
 function preload(){
+
+    // -- Tiled --
+
+    this.load.image('tiles', 'assets/Tiled/Tileset.png');
+    this.load.tilemapTiledJSON('map', 'assets/Tiled/map0A.json');
 
     // -- Acteurs Vivants --
 
@@ -62,6 +61,15 @@ function preload(){
 
 function create(){
 
+    // -- Tiled --
+
+    const map = this.make.tilemap({key: 'map'});
+    const tileset = map.addTilesetImage('Tileset', 'tiles');
+
+    var ground_Layer = map.createLayer('Ground', tileset);
+    var wall_Layer = map.createLayer('Wall', tileset);
+
+
     // -- Inputs --
 
     cursors = this.input.keyboard.addKeys(
@@ -71,10 +79,16 @@ function create(){
         right:Phaser.Input.Keyboard.KeyCodes.D});
 
 
-    // Joueur
+    // -- Joueur --
 
-    joueur = this.physics.add.sprite(600, 600, 'joueur');
+    joueur = this.physics.add.sprite(100, 100, 'joueur');
     joueurWalkspeed = 3;
+
+
+    // -- Camera --
+
+    this.cameras.main.startFollow(joueur);
+    this.cameras.main.setBounds(0, 0, joueur.widthInPixels, joueur.heightInPixels);
 
 
 }
@@ -105,22 +119,22 @@ function deplacementsJoueur(){
 
 
     if (cursors.right.isDown && cursors.up.isDown && !cursors.left.isDown && !cursors.down.isDown){
-        joueur.x += joueurWalkspeed/Math.sqrt(2);                       
+        joueur.x += joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale haut doite                     
         joueur.y -= joueurWalkspeed/Math.sqrt(2); 
     }
 
     else if (cursors.left.isDown && cursors.up.isDown && !cursors.down.isDown && !cursors.right.isDown){
-        joueur.x -= joueurWalkspeed/Math.sqrt(2);                      
+        joueur.x -= joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale haut gauche                      
         joueur.y -= joueurWalkspeed/Math.sqrt(2);                       
     }
 
     else if (cursors.down.isDown && cursors.left.isDown && !cursors.up.isDown && !cursors.right.isDown){
-        joueur.x -= joueurWalkspeed/Math.sqrt(2);                      
+        joueur.x -= joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale bas gauche                      
         joueur.y += joueurWalkspeed/Math.sqrt(2);                       
     }
 
     else if (cursors.down.isDown && cursors.right.isDown && !cursors.left.isDown && !cursors.up.isDown){
-        joueur.x += joueurWalkspeed/Math.sqrt(2);                      
+        joueur.x += joueurWalkspeed/Math.sqrt(2);           // Déplacements vers la diagonale bas droite                      
         joueur.y += joueurWalkspeed/Math.sqrt(2);                         
     }
 
