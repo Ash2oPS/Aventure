@@ -11,7 +11,7 @@ const config = {
         default: 'arcade',
         arcade:{
             //gravity: {},
-            debug: true
+            debug: false
         }
     },
     input : {gamepad:true},
@@ -37,6 +37,7 @@ var cursors;
 // -- player --
 
 var player;
+var shadow;
 var playerWalkspeed;
 var playerIsMoving;
 var currentX;
@@ -57,6 +58,7 @@ function preload(){
     // -- Acteurs Vivants --
 
     this.load.spritesheet('player', 'assets/player/gator.png', {frameWidth : 100, frameHeight : 100});
+    this.load.image('shadow', 'assets/player/shadow.png');
 
 }
 
@@ -101,15 +103,16 @@ function create(){
 
     // -- player --
 
-    player = this.physics.add.sprite(750, 470, 'player')
+    shadow = this.add.image(750, 490, 'shadow')
+    .setOrigin(.5, 1);
+    player = this.physics.add.sprite(750, 475, 'player')
     .setOrigin(.5, 1);
     playerWalkspeed = 5;
     playerIsMoving = false;
     currentX = 0;
     nextX = 0;
     currentY = 0;
-    nextY = 0;
-    
+    nextY = 0;    
 
 
     // -- Camera --
@@ -187,7 +190,10 @@ function playerMoves(){
 
         if (currentX <= nextX && currentX != 0){
 
-            if (player.x < nextX)  player.x += playerWalkspeed;
+            if (player.x < nextX){
+                player.x += playerWalkspeed; 
+                shadow.x += playerWalkspeed;
+            }
             else{
                 playerIsMoving = false;
 
@@ -195,7 +201,10 @@ function playerMoves(){
 
         } else if (currentX >= nextX && currentX != 0){
 
-            if (player.x > nextX)  player.x -= playerWalkspeed;
+            if (player.x > nextX){
+                player.x -= playerWalkspeed; 
+                shadow.x -= playerWalkspeed;
+            }
             else{
                 playerIsMoving = false;
 
@@ -203,7 +212,10 @@ function playerMoves(){
 
         } else if (currentY <= nextY && currentY != 0){
 
-            if (player.y < nextY)  player.y += playerWalkspeed;
+            if (player.y < nextY){  
+                player.y += playerWalkspeed; 
+                shadow.y += playerWalkspeed;
+            }
             else{
                 playerIsMoving = false;
 
@@ -211,7 +223,10 @@ function playerMoves(){
 
         } else if (currentY >= nextY && currentY != 0){
 
-            if (player.y > nextY)  player.y -= playerWalkspeed;
+            if (player.y > nextY){  
+                player.y -= playerWalkspeed; 
+                shadow.y -= playerWalkspeed;
+            }
             else{
                 playerIsMoving = false;
 
