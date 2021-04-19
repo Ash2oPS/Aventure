@@ -11,7 +11,7 @@ const config         = {
         default      : 'arcade',
         arcade       : {
             //gravity: {},
-            debug    : false
+            debug    : true
         }
     },
     input            : {
@@ -87,6 +87,8 @@ function create() {
         debugText.setScrollFactor(0)
             .setOrigin(0, 0)
             .setDepth(2);
+
+        printCases(this, 25);
     }
 
     // -- Tiled --
@@ -113,9 +115,11 @@ function create() {
     // -- player --
 
     shadow          = this.add.image(750, 490, 'shadow')
-        .setOrigin(.5, 1);
+        .setOrigin(.5, 1)
+        .setDepth(1);
     player          = this.physics.add.sprite(750, 475, 'player')
-        .setOrigin(.5, 1);
+        .setOrigin(.5, 1)
+        .setDepth(1);
     playerWalkspeed = 5;
     playerIsMoving  = false;
     currentX        = 0;
@@ -139,7 +143,8 @@ function update() {
 
     // DEBUG TEXT
     if (config.physics.arcade.debug) {
-        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX);
+        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + 
+        '\ngator current Case : ' + getCaseX(player) + ', ' + getCaseY(player));
     }
 
     //
@@ -153,6 +158,23 @@ function update() {
 
 
 ////////// FUNCTIONS //////////
+
+function printCases(context, limit){
+    for (i = 0; i < limit; i++){
+        for (j = 0; j < limit; j++){
+            context.add.text(i * 100 + 50, j * 100 + 50, '[' + i + ';' + j + ']',{
+                fontSize       : '12px',
+                padding        : {
+                    x          : 10,
+                    y          : 5
+                },
+                fill           : '#ffffff'
+            })
+            .setOrigin(.5, .5)
+            .setDepth(.1);
+        }
+    }
+}
 
 function deplacementsPlayer() {
 
@@ -241,7 +263,26 @@ function playerMoves() {
 
 
 function getCaseX(value){
-    valX = value.x;
+
+    if (!playerIsMoving){
+        valX = value.x;
+
+        valX -= 50;
+        valX /= 100;
+
+        return valX;
+    }
+}
 
 
+function getCaseY(value){
+
+    if (!playerIsMoving){
+        valY = value.y;
+
+        valY -= 75;
+        valY /= 100;
+
+        return valY;
+    }
 }
