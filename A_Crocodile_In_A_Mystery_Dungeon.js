@@ -37,7 +37,7 @@ var debugText;
 
 var cursors;
 
-// -- player --
+// -- Player --
 
 var player; //gameObjects
 var shadow;
@@ -61,6 +61,14 @@ var uiTextMoney;
 var uiTextLightning;
 var uiTextFire;
 
+// -- Items
+
+var keyItem;
+var moneyItem;
+var fireItem;
+var lightningItem;
+var stairItem;
+
 
 
 ////////// PRELOAD //////////
@@ -69,24 +77,19 @@ function preload() {
 
     // -- Tiled --
 
-    this.load.image('tiles', 'assets/Tiled/Tileset.png');
-    this.load.tilemapTiledJSON('map', 'assets/Tiled/map0A.json');
+    preloadTiled(this);
 
     // -- Acteurs Vivants --
 
-    this.load.spritesheet('player', 'assets/player/gator.png', {
-        frameWidth : 100,
-        frameHeight: 100
-    });
-    this.load.image('shadow', 'assets/player/shadow.png');
+    preloadCharacters(this);
 
+    // -- Items --
+
+    preloadItems(this);
+    
     // -- UI --
 
-    this.load.image('keyIcon', 'assets/UI/KeyIcon.png');
-    this.load.image('moneyIcon', 'assets/UI/MoneyIcon.png');
-    this.load.image('fireIcon', 'assets/UI/FireIcon.png');
-    this.load.image('lightningIcon', 'assets/UI/LightningIcon.png');
-    this.load.image('stairIcon', 'assets/UI/StairIcon.png');
+    preloadUI(this);
 
 }
 
@@ -111,14 +114,17 @@ function create() {
 
     initInputs(this);
 
-    // -- player --
+    // -- Player --
 
     initPlayer(this);
+
+    // -- Items --
+
+    initItems(this);
 
     // -- Camera --
 
     initCamera(this);
-
 
 }
 
@@ -142,6 +148,39 @@ function update() {
 
 
 ////////// FUNCTIONS //////////
+
+function preloadTiled(context){
+    context.load.image('tiles', 'assets/Tiled/Tileset.png');
+    context.load.tilemapTiledJSON('map', 'assets/Tiled/map0A.json');
+}
+
+
+function preloadCharacters(context){
+    context.load.spritesheet('player', 'assets/player/gator.png', {
+        frameWidth : 100,
+        frameHeight: 100
+    });
+    context.load.image('shadow', 'assets/player/shadow.png');
+}
+
+
+function preloadItems(context){
+    context.load.image('key', 'assets/items/key.png');
+    context.load.image('money', 'assets/items/money.png');
+    context.load.image('fire', 'assets/items/fire.png');
+    context.load.image('lightning', 'assets/items/lightning.png');
+    context.load.image('stair', 'assets/items/stair.png');
+}
+
+
+function preloadUI(context){
+    context.load.image('keyIcon', 'assets/UI/KeyIcon.png');
+    context.load.image('moneyIcon', 'assets/UI/MoneyIcon.png');
+    context.load.image('fireIcon', 'assets/UI/FireIcon.png');
+    context.load.image('lightningIcon', 'assets/UI/LightningIcon.png');
+    context.load.image('stairIcon', 'assets/UI/StairIcon.png');
+}
+
 
 function initDebug(context) {
     if (config.physics.arcade.debug) {
@@ -267,10 +306,10 @@ function initInputs(context){
 
 
 function initPlayer(context){
-    shadow = context.add.image(750, 490, 'shadow')
+    shadow = context.add.image(caseXToCoord(7), caseYToCoord(4) + 15, 'shadow')
         .setOrigin(.5, 1)
         .setDepth(1);
-    player = context.physics.add.sprite(750, 475, 'player')
+    player = context.physics.add.sprite(caseXToCoord(7), caseYToCoord(4), 'player')
         .setOrigin(.5, 1)
         .setDepth(1);
     playerWalkspeed = 5;
@@ -284,6 +323,20 @@ function initPlayer(context){
     playerLightning = 1;
     playerFire = 1;
     currentFloor = 0;
+}
+
+
+function initItems(context){
+    keyItem = context.add.image(caseXToCoord(5), caseYToCoord(2), 'key')
+    .setOrigin(.5, 1);
+    moneyItem = context.add.image(caseXToCoord(11), caseYToCoord(6), 'money')
+    .setOrigin(.5, 1);
+    fireItem = context.add.image(caseXToCoord(3), caseYToCoord(7), 'fire')
+    .setOrigin(.5, 1);
+    lightningItem = context.add.image(caseXToCoord(12), caseYToCoord(1), 'lightning')
+    .setOrigin(.5, 1);
+    stairItem = context.add.image(caseXToCoord(2), caseYToCoord(1), 'stair')
+    .setOrigin(.5, 1);
 }
 
 
@@ -313,7 +366,7 @@ function printCases(context, departX, departY, arriveeX, arriveeY) {
 
 function debugDisplay(config) {
     if (config.physics.arcade.debug) {
-        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX +
+        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + '; currentY : ' + currentY + ' nextY : ' + nextY +
             '\ngator current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']');
     }
 
