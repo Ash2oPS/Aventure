@@ -37,8 +37,6 @@ var debugText;
 
 var cursors;
 
-var uiText;
-
 // -- player --
 
 var player;             //gameObjects
@@ -56,6 +54,13 @@ var playerKey;
 var playerLightning;
 var playerFire;
 var currentFloor;
+
+var uiTextStair;
+var uiTextKey;
+var uiTextMoney;
+var uiTextLightning;
+var uiTextFire;
+
 
 
 ////////// PRELOAD //////////
@@ -75,6 +80,14 @@ function preload() {
     });
     this.load.image('shadow', 'assets/player/shadow.png');
 
+    // -- UI --
+
+    this.load.image('keyIcon', 'assets/UI/KeyIcon.png');
+    this.load.image('moneyIcon', 'assets/UI/MoneyIcon.png');
+    this.load.image('fireIcon', 'assets/UI/FireIcon.png');
+    this.load.image('lightningIcon', 'assets/UI/LightningIcon.png');
+    this.load.image('stairIcon', 'assets/UI/StairIcon.png');
+
 }
 
 
@@ -83,39 +96,13 @@ function preload() {
 function create() {
 
     // -- Debugtext --
-    if (config.physics.arcade.debug) {
-        debugText          = this.add.text(1920, 0, "bonjour, ça va ? super", {
-            fontSize       : '24px',
-            padding        : {
-                x          : 10,
-                y          : 5
-            },
-            backgroundColor: '#000000',
-            fill           : '#ffffff'
-        });
-        debugText.setScrollFactor(0)
-            .setOrigin(1, 0)
-            .setDepth(11);
-
-        printCases(this, 2, 1, 12, 7);              // Affiche les coordonnées des cases entre [departX;departY] et [arriveeX;arriveeY]
-    }
+    
+    initDebug(this);
 
     // -- UI --
 
-    uiText = this.add.text(0,0, 'Current Floor: ' + currentFloor + 
-    '\nMoney: ' + playerMoney + 
-    '\nKeys: ' + playerKey + 
-    '\nLightnings: ' + playerLightning + 
-    '\nFires: ' + playerFire, {
-        fontSize : '24px',
-        padding : {
-            x : 10,
-            y : 10
-        }
-    })
-    .setScrollFactor(0)
-    .setOrigin(0,0)
-    .setDepth(10);
+    initUi(this);
+
 
     // -- Tiled --
 
@@ -152,10 +139,10 @@ function create() {
     nextX           = 0;
     currentY        = 0;
     nextY           = 0;
-    playerMoney     = 0
-    playerKey       = 0;
-    playerLightning = 0;
-    playerFire      = 0;
+    playerMoney     = 150;
+    playerKey       = 1;
+    playerLightning = 1;
+    playerFire      = 1;
     currentFloor    = 0;
 
 
@@ -173,13 +160,12 @@ function create() {
 function update() {
 
     // DEBUG TEXT
-    if (config.physics.arcade.debug) {
-        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + 
-        '\ngator current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']');
-    }
+
+    debugDisplay(config);
 
     //
 
+    upgradeUI();
     deplacementsPlayer(); //Le player se déplace (ZQSD/LStick)
     playerMoves();
 
@@ -188,6 +174,108 @@ function update() {
 
 
 ////////// FUNCTIONS //////////
+
+function initDebug(context){
+    if (config.physics.arcade.debug) {
+        debugText          = context.add.text(0, 1080, "bonjour, ça va ? super", {
+            fontSize       : '24px',
+            padding        : {
+                x          : 10,
+                y          : 5
+            },
+            backgroundColor: '#000000',
+            fill           : '#ffffff'
+        });
+        debugText.setScrollFactor(0)
+            .setOrigin(0, 1)
+            .setDepth(11);
+
+        printCases(context, 2, 1, 12, 7);              // Affiche les coordonnées des cases entre [departX;departY] et [arriveeX;arriveeY]
+    }
+}           //What's in the Create Event and that's about the custom debugger
+
+
+function initUi(context){
+    uiTextKey = context.add.text(106, 106, playerKey, {
+        fontSize : '24px',
+        padding : {
+            x : 10,
+            y : 10
+        },
+    })
+    .setScrollFactor(0)
+    .setOrigin(1,1)
+    .setDepth(11);
+
+    uiTextMoney = context.add.text(106, 202, playerMoney, {
+        fontSize : '24px',
+        padding : {
+            x : 10,
+            y : 10
+        }
+    })
+    .setScrollFactor(0)
+    .setOrigin(1,1)
+    .setDepth(11);
+
+    uiTextFire = context.add.text(106, 318, playerFire, {
+        fontSize : '24px',
+        padding : {
+            x : 10,
+            y : 10
+        }
+    })
+    .setScrollFactor(0)
+    .setOrigin(1,1)
+    .setDepth(11);
+
+    uiTextLightning = context.add.text(106, 414, playerLightning, {
+        fontSize : '24px',
+        padding : {
+            x : 10,
+            y : 10
+        }
+    })
+    .setScrollFactor(0)
+    .setOrigin(1,1)
+    .setDepth(11);
+
+    uiTextStair = context.add.text(1910, 114, playerLightning, {
+        fontSize : '26px',
+        fill     : '#F5AEB2'
+    })
+    .setScrollFactor(0)
+    .setOrigin(1,1)
+    .setDepth(11);
+
+
+
+    context.add.image(10, 10, 'keyIcon')
+    .setDepth(10)
+    .setScrollFactor(0)
+    .setOrigin(0,0);
+
+    context.add.image(10, 106, 'moneyIcon')
+    .setDepth(10)
+    .setScrollFactor(0)
+    .setOrigin(0,0);
+
+    context.add.image(10, 222, 'fireIcon')
+    .setDepth(10)
+    .setScrollFactor(0)
+    .setOrigin(0,0);
+
+    context.add.image(10, 318, 'lightningIcon')
+    .setDepth(10)
+    .setScrollFactor(0)
+    .setOrigin(0,0);
+
+    context.add.image(1910, 10, 'stairIcon')
+    .setDepth(10)
+    .setScrollFactor(0)
+    .setOrigin(1,0);
+}           //What's in the Create Event and that's about UI
+
 
 function printCases(context, departX, departY, arriveeX, arriveeY){
     for (i = departX; i < arriveeX + 1; i++){
@@ -204,7 +292,27 @@ function printCases(context, departX, departY, arriveeX, arriveeY){
             .setDepth(.1);
         }
     }
-}
+}           //Prints Cases' IDs from [departX;departY] to [arriveeX;arriveeY] (Xs et Ys being in-game Case Coordinates, not X and Y Coordinates)
+
+
+function debugDisplay(config){
+    if (config.physics.arcade.debug) {
+        debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + 
+        '\ngator current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']');
+    }
+
+}           //What's in the Update Event and that's about the custom debugger
+
+
+function upgradeUI(){
+    uiTextKey.setText(playerKey);
+    uiTextMoney.setText(playerMoney);
+    uiTextFire.setText(playerFire);
+    uiTextLightning.setText(playerLightning);
+
+    if(currentFloor == 0)   uiTextStair.setText('G.F.');
+    else    uiTextStair.setText(currentFloor + 'F.');
+}           //What's in the Update Event and that's about UI
 
 
 function deplacementsPlayer() {
