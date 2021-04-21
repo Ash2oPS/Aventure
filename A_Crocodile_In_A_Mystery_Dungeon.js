@@ -65,13 +65,21 @@ var uiTextMoney;
 var uiTextLightning;
 var uiTextFire;
 
-// -- Items
+// -- Items --
 
 var keyItem;
 var moneyItem;
 var fireItem;
 var lightningItem;
 var stairItem;
+
+// -- Tiled --
+
+var map;
+var tileset;
+var ground_Layer;
+var wall_Layer;
+var locks_Layer;
 
 
 
@@ -189,10 +197,10 @@ function preloadUI(context){
 
 
 function initDebug(context) {
-    colChecker = context.add.image(caseXToCoord(0), caseYToCoord(0), 'colChecker')
+    colChecker = context.physics.add.sprite(caseXToCoord(0), caseYToCoord(0), 'colChecker')
     .setOrigin(.5, 1)
-    .setDepth(12)
-    .opacity = 0;
+    .setDepth(12);
+    colChecker.opacity = 0;
     if (config.physics.arcade.debug) {
         debugText = context.add.text(0, 935, "bonjour, ça va ? super", {
             fontSize: '24px',
@@ -217,7 +225,6 @@ function initDebug(context) {
         printCases(context, 66,20,76,26);
         printCases(context, 78,31,86,37);
         printCases(context, 80,44,90,50);
-
     }
 } //Ce qui se trouve dans la fonction Create et qui concerne le debugger custom
 
@@ -304,21 +311,6 @@ function initUi(context) {
 } //Ce qui se trouve dans la fonction Create et qui concerne l'UI
 
 
-function initTiled(context){
-    const map = context.make.tilemap({
-        key: 'map'
-    });
-    const tileset = map.addTilesetImage('Tileset', 'tiles');
-
-    var ground_Layer = map.createLayer('Ground', tileset);
-    var wall_Layer = map.createLayer('Wall', tileset);
-    var locks_Layer = map.createLayer('Locks', tileset)
-
-    wall_Layer.setCollisionByExclusion(-1,true);
-    context.physics.add.overlap(colChecker, wall_Layer, function(){/*colCheckerReturns = true;*/ console.log('yay')});
-} //Ce qui se trouve dans la fonction Create et qui concerne Tiled (et les collisions du jeu)
-
-
 function initInputs(context){
     cursors = context.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.Z,
@@ -343,7 +335,7 @@ function initPlayer(context){
     currentY = 0;
     nextY = 0;
     playerMoney = 150;
-    playerKey = 1;
+    playerKey = 0;
     playerLightning = 1;
     playerFire = 1;
     currentFloor = 1;
@@ -351,7 +343,7 @@ function initPlayer(context){
 
 
 function initItems(context){
-    keyItem = context.add.image(caseXToCoord(54), caseYToCoord(), 'key')
+    keyItem = context.add.image(caseXToCoord(89), caseYToCoord(47), 'key')
     .setOrigin(.5, 1);
     moneyItem = context.add.image(caseXToCoord(11), caseYToCoord(6), 'money')
     .setOrigin(.5, 1);
@@ -368,6 +360,23 @@ function initCamera(context){
     context.cameras.main.startFollow(player);
     context.cameras.main.setBounds(0, 0, player.widthInPixels, player.heightInPixels);
 }
+
+
+function initTiled(context){
+    map = context.make.tilemap({
+        key: 'map'
+    });
+    tileset = map.addTilesetImage('Tileset', 'tiles');
+
+    ground_Layer = map.createLayer('Ground', tileset);
+    wall_Layer = map.createLayer('Wall', tileset);
+    locks_Layer = map.createLayer('Locks', tileset)
+
+    wall_Layer.setCollisionByExclusion(-1,true);
+    locks_Layer.setCollisionByExclusion(-1,true);
+    context.physics.add.overlap(colChecker, wall_Layer, function(){colCheckerReturns = true});
+    context.physics.add.overlap(colChecker, keyItem, pickupKey);
+} //Ce qui se trouve dans la fonction Create et qui concerne Tiled (et les collisions du jeu)
 
 
 function printCases(context, departX, departY, arriveeX, arriveeY) {
@@ -391,7 +400,8 @@ function printCases(context, departX, departY, arriveeX, arriveeY) {
 function debugDisplay(config) {
     if (config.physics.arcade.debug) {
         debugText.setText('gator is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + '; currentY : ' + currentY + ' nextY : ' + nextY +
-            '\ngator current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']');
+            '\nplayer current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']'+
+            '\n colChecker current Case : [' + getCaseX(colChecker.x) + ';' + getCaseY(colChecker.y) + '] + returns : ' + colCheckerReturns);
     }
 
 } //What's in the Update Event and that's about the custom debugger
@@ -432,7 +442,7 @@ function deplacementsPlayer() {
             nextY = player.y - 100;
             playerIsMoving = true;
         }
-        //colCheckerMovesBack();
+        colCheckerMovesBack();
     }
 
 
@@ -495,22 +505,34 @@ function playerMoves() {
 
 
 function colCheckerMoves(caseX, caseY){
-    colChecker.x = caseXToCoord(caseX);
-    colChecker.y = caseYToCoord(caseY);
+    colChecker.x = player.x/*caseXToCoord(caseX)*/;
+    colChecker.y = player.y/*caseYToCoord(caseY)*/;
 }
 
 
 function colCheckerMovesBack(){
     colChecker.x = caseXToCoord(0);
     colChecker.y = caseYToCoord(0);
+    colCheckerReturns = false;
 }
 
 
 function lockOpener(){
-    if (getCaseX(player.x) == 46 && getCaseY(player.y) == 13 && playerKey != 0){
-        console.log('oui');
+    if (getCaseX(player.x) == 46 && getCaseY(player.y) == 13 && playerKey > 0){
+        console.log(locks_Layer);
         playerKey --;
+        locks_Layer.destroy();
+        console.log(locks_Layer);
+    }else if (getCaseX(player.x) == 60 && getCaseY(player.y) == 12 && playerKey > 0){
+        playerKey --;
+        locks_Layer.destroy();
     }
+}
+
+
+function pickupKey(){
+    playerKey++;
+    keyItem.destroy();
 }
 
 
