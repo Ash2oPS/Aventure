@@ -37,6 +37,9 @@ var debugText;
 
 var cursors;
 
+var colChecker;
+var colCheckerReturns;
+
 // -- Player --
 
 var player; //gameObjects
@@ -54,6 +57,7 @@ var playerKey;
 var playerLightning;
 var playerFire;
 var currentFloor;
+var playerHp;
 
 var uiTextStair;
 var uiTextKey;
@@ -139,9 +143,10 @@ function update() {
 
     //
 
-    upgradeUI();
-    deplacementsPlayer(); //Le player se déplace (ZQSD/LStick)
-    playerMoves();
+    upgradeUI();                // Le HUD se met à jour
+    deplacementsPlayer();       // Le player se déplace (ZQSD/LStick)
+    playerMoves();              // Le joueur bouge
+    lockOpener();               // Vérifie si on ouvre les verrous
 
 
 }
@@ -150,6 +155,7 @@ function update() {
 ////////// FUNCTIONS //////////
 
 function preloadTiled(context){
+    context.load.image('colChecker', 'ColChecker.png')
     context.load.image('tiles', 'assets/Tiled/Tileset.png');
     context.load.tilemapTiledJSON('map', 'assets/Tiled/map0A.json');
 }
@@ -183,8 +189,12 @@ function preloadUI(context){
 
 
 function initDebug(context) {
+    colChecker = context.add.image(caseXToCoord(0), caseYToCoord(0), 'colChecker')
+    .setOrigin(.5, 1)
+    .setDepth(12)
+    .opacity = 0;
     if (config.physics.arcade.debug) {
-        debugText = context.add.text(0, 1080, "bonjour, ça va ? super", {
+        debugText = context.add.text(0, 935, "bonjour, ça va ? super", {
             fontSize: '24px',
             padding: {
                 x: 10,
@@ -197,9 +207,19 @@ function initDebug(context) {
             .setOrigin(0, 1)
             .setDepth(11);
 
-        printCases(context, 2, 1, 12, 7); // Affiche les coordonnées des cases entre [departX;departY] et [arriveeX;arriveeY]
+        colChecker.opacity = 1;
+
+        //printCases(context, 31, 8, 94, 55); // Affiche les coordonnées des cases entre [departX;departY] et [arriveeX;arriveeY]
+        printCases(context, 34,24,44,30);
+        printCases(context, 33,49,43,55);
+        printCases(context, 53,38,61,44);
+        printCases(context, 48,10,58,16);
+        printCases(context, 66,20,76,26);
+        printCases(context, 78,31,86,37);
+        printCases(context, 80,44,90,50);
+
     }
-} //What's in the Create Event and that's about the custom debugger
+} //Ce qui se trouve dans la fonction Create et qui concerne le debugger custom
 
 
 function initUi(context) {
@@ -281,7 +301,7 @@ function initUi(context) {
         .setDepth(10)
         .setScrollFactor(0)
         .setOrigin(1, 0);
-} //What's in the Create Event and that's about UI
+} //Ce qui se trouve dans la fonction Create et qui concerne l'UI
 
 
 function initTiled(context){
@@ -292,7 +312,11 @@ function initTiled(context){
 
     var ground_Layer = map.createLayer('Ground', tileset);
     var wall_Layer = map.createLayer('Wall', tileset);
-}
+    var locks_Layer = map.createLayer('Locks', tileset)
+
+    wall_Layer.setCollisionByExclusion(-1,true);
+    context.physics.add.overlap(colChecker, wall_Layer, function(){/*colCheckerReturns = true;*/ console.log('yay')});
+} //Ce qui se trouve dans la fonction Create et qui concerne Tiled (et les collisions du jeu)
 
 
 function initInputs(context){
@@ -309,7 +333,7 @@ function initPlayer(context){
     shadow = context.add.image(caseXToCoord(7), caseYToCoord(4) + 15, 'shadow')
         .setOrigin(.5, 1)
         .setDepth(1);
-    player = context.physics.add.sprite(caseXToCoord(7), caseYToCoord(4), 'player')
+    player = context.physics.add.sprite(caseXToCoord(57), caseYToCoord(41), 'player')
         .setOrigin(.5, 1)
         .setDepth(1);
     playerWalkspeed = 5;
@@ -322,12 +346,12 @@ function initPlayer(context){
     playerKey = 1;
     playerLightning = 1;
     playerFire = 1;
-    currentFloor = 0;
+    currentFloor = 1;
 }
 
 
 function initItems(context){
-    keyItem = context.add.image(caseXToCoord(5), caseYToCoord(2), 'key')
+    keyItem = context.add.image(caseXToCoord(54), caseYToCoord(), 'key')
     .setOrigin(.5, 1);
     moneyItem = context.add.image(caseXToCoord(11), caseYToCoord(6), 'money')
     .setOrigin(.5, 1);
@@ -335,7 +359,7 @@ function initItems(context){
     .setOrigin(.5, 1);
     lightningItem = context.add.image(caseXToCoord(12), caseYToCoord(1), 'lightning')
     .setOrigin(.5, 1);
-    stairItem = context.add.image(caseXToCoord(2), caseYToCoord(1), 'stair')
+    stairItem = context.add.image(caseXToCoord(58), caseYToCoord(16), 'stair')
     .setOrigin(.5, 1);
 }
 
@@ -388,22 +412,27 @@ function deplacementsPlayer() {
 
     if (!playerIsMoving) {
         if (cursors.right.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x)+1), caseYToCoord(getCaseY(player.y)));
             currentX = player.x;
             nextX = player.x + 100;
             playerIsMoving = true;
         } else if (cursors.left.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x)-1), caseYToCoord(getCaseY(player.y)));
             currentX = player.x;
             nextX = player.x - 100;
             playerIsMoving = true;
         } else if (cursors.down.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x)), caseYToCoord(getCaseY(player.y)+1));
             currentY = player.y;
             nextY = player.y + 100;
             playerIsMoving = true;
         } else if (cursors.up.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x)), caseYToCoord(getCaseY(player.y)-1));
             currentY = player.y;
             nextY = player.y - 100;
             playerIsMoving = true;
         }
+        //colCheckerMovesBack();
     }
 
 
@@ -461,6 +490,26 @@ function playerMoves() {
         nextX = 0;
         currentY = 0;
         nextY = 0;
+    }
+}
+
+
+function colCheckerMoves(caseX, caseY){
+    colChecker.x = caseXToCoord(caseX);
+    colChecker.y = caseYToCoord(caseY);
+}
+
+
+function colCheckerMovesBack(){
+    colChecker.x = caseXToCoord(0);
+    colChecker.y = caseYToCoord(0);
+}
+
+
+function lockOpener(){
+    if (getCaseX(player.x) == 46 && getCaseY(player.y) == 13 && playerKey != 0){
+        console.log('oui');
+        playerKey --;
     }
 }
 
