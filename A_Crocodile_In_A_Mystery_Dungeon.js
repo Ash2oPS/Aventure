@@ -1,3 +1,7 @@
+// LES COLLISIONS CONTRE LES MURS NE FONCTIONNENT PAS
+// SI HAUT/BAS SONT APPUYES ALORS QU'UN DEPLACEMENT VERS GAUCHE/DROITE N'EST PAS FINI, LE JOUEUR SERA BLOQUE
+
+
 ////////// CONFIG //////////
 
 const screenWidth    = 1920;
@@ -11,7 +15,7 @@ const config         = {
         default      : 'arcade',
         arcade       : {
             //gravity: {},
-            debug    : true
+            debug    : false
         }
     },
     input            : {
@@ -36,6 +40,8 @@ var game = new Phaser.Game(config);
 var debugText;
 
 var cursors;
+var fireInput;
+var lightningInput;
 
 var colChecker;
 var colCheckerReturns;
@@ -68,9 +74,14 @@ var uiHp0;
 var uiHp1;
 var uiHp2;
 
+var indications;
+
 var fireAttackSprite;
+var playerIsFireAttacking;
 var lightningAttackSprite;
+var playerIsLightningAttacking;
 var normalAttack;
+var playerIsAttacking;
 
 var attackCount;
 
@@ -172,8 +183,8 @@ function update() {
     playerMoves();              // Le joueur bouge
     lifeManagement();
     lockOpener();               // Vérifie si on ouvre les verrous
-    fireAttack();
-    LightningAttack();
+    fireAttack(this);
+    LightningAttack(this);
 
 
 }
@@ -352,6 +363,9 @@ function initUi(context) {
         .setOrigin(1,1)
         .setScrollFactor(0);
 
+    indications = context.add.text(caseXToCoord(49) - 40, caseYToCoord(36),'Move: ZQSD\nFire Attack : A\nLightning Attack: E AND a direction\nPlay in fullscreen(F11)' ,{fontSize: '32px'})
+    .setOrigin(0,0)
+    .setDepth(2);
 } //Ce qui se trouve dans la fonction Create et qui concerne l'UI
 
 
@@ -362,6 +376,8 @@ function initInputs(context){
         left: Phaser.Input.Keyboard.KeyCodes.Q,
         right: Phaser.Input.Keyboard.KeyCodes.D
     });
+    fireInput = context.input.keyboard.addKey('A');
+    lightningInput = context.input.keyboard.addKey('E');
 }
 
 
@@ -383,6 +399,7 @@ function initPlayer(context){
     playerLightning = 0;
     playerFire = 0;
     currentFloor = 1;
+    playerHp = 3;
 
 
     attackCount = 0;
@@ -462,7 +479,8 @@ function debugDisplay(config) {
     if (config.physics.arcade.debug) {
         debugText.setText('player is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + '; currentY : ' + currentY + ' nextY : ' + nextY +
             '\nplayer current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']'+
-            '\n colChecker current Case : [' + getCaseX(colChecker.x) + ';' + getCaseY(colChecker.y) + '] + returns : ' + colCheckerReturns);
+            '\n colChecker current Case : [' + getCaseX(colChecker.x) + ';' + getCaseY(colChecker.y) + '] + returns : ' + colCheckerReturns + 
+            '\nAttackCount : ' + attackCount);
     }
 
 } //What's in the Update Event and that's about the custom debugger
@@ -481,7 +499,7 @@ function upgradeUI() {
 
 function deplacementsPlayer() {
 
-    if (!playerIsMoving) {
+    if (!playerIsMoving && !lightningInput.isDown) {
         if (cursors.right.isDown) {
             colCheckerMoves(caseXToCoord(getCaseX(player.x)+1), caseYToCoord(getCaseY(player.y))-10);
             currentX = player.x;
@@ -577,10 +595,8 @@ function colCheckerMovesBack(){
 
 function lockOpener(){
     if (getCaseX(player.x) == 46 && getCaseY(player.y) == 13 && playerKey > 0){
-        console.log(locks_Layer);
         playerKey --;
         locks_Layer.destroy();
-        console.log(locks_Layer);
     }else if (getCaseX(player.x) == 60 && getCaseY(player.y) == 12 && playerKey > 0){
         playerKey --;
         locks_Layer.destroy();
@@ -617,20 +633,69 @@ function pickupStair(){
     console.log("EEEE T'ES A L'ESCALIER");
 }
 
-function fireAttack(){
-    
+function fireAttack(context){
+    if (playerFire > 0){
+        if (fireInput.isDown && attackCount == 0){
+            playerIsFireAttacking = true;
+            fireAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x) - 1) - 50, caseYToCoord(getCaseY(player.y) - 1) - 75, 'fireAttack')
+            .setOrigin(0, 0);
+            attackCount ++;
+            playerFire --;
+        }
+    }
+    if (playerIsFireAttacking)  attackCount ++;
+    if (attackCount >= 45){
+        attackCount = 0;
+        playerIsFireAttacking = false;
+        fireAttackSprite.destroy();
+    }    
 }
 
 
-function LightningAttack(){
-
+function LightningAttack(context){
+    if (playerLightning > 0){
+        if (lightningInput.isDown && attackCount == 0){
+            if (cursors.left.isDown){
+                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x) - 1) + 50, caseYToCoord(getCaseY(player.y)-1) - 75, 'lightningAttackLeft')    
+                .setOrigin(1, 0);
+                playerLightning --;
+                attackCount++;
+                playerIsLightningAttacking = true;
+            } else if (cursors.up.isDown){
+                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x)-1) - 50, caseYToCoord(getCaseY(player.y)) - 75, 'lightningAttackUp')    
+                .setOrigin(0, 1);
+                playerLightning --;
+                attackCount++;
+                playerIsLightningAttacking = true;
+            } else if (cursors.right.isDown){
+                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x) + 1) - 50, caseYToCoord(getCaseY(player.y) -1 ) - 75, 'lightningAttackRight')    
+                .setOrigin(0, 0);
+                playerLightning --;
+                attackCount++;
+                playerIsLightningAttacking = true;
+            } else if (cursors.down.isDown){
+                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x)+2) - 50, caseYToCoord(getCaseY(player.y) + 1) - 75, 'lightningAttackDown')    
+                .setOrigin(1, 0);
+                playerLightning --;
+                attackCount++;
+                playerIsLightningAttacking = true;
+            }
+            
+        }
+    }
+    if (playerIsLightningAttacking)  attackCount ++;
+    if (attackCount >= 45 && playerIsLightningAttacking){
+        attackCount = 0;
+        playerIsLightningAttacking = false;
+        lightningAttackSprite.destroy();
+    }
 }
 
 
 function lifeManagement(){
-    if (playerHp == 2)  uiHp2.destroy();
-    else if (playerHp == 1)  uiHp1.destroy();
-    else if (playerHp == 0)  uiHp0.destroy();
+    if (playerHp <= 2 && uiHp2 != null)  uiHp2.destroy();
+    if (playerHp <= 1 && uiHp1 != null)  uiHp1.destroy();
+    if (playerHp == 0 && uiHp0 != null)  uiHp0.destroy();
 }
 
 
