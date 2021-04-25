@@ -64,6 +64,18 @@ var uiTextKey;
 var uiTextMoney;
 var uiTextLightning;
 var uiTextFire;
+var uiHp0;
+var uiHp1;
+var uiHp2;
+
+var fireAttackSprite;
+var lightningAttackSprite;
+var normalAttack;
+
+var attackCount;
+
+// -- Ennem1 --
+
 
 // -- Items --
 
@@ -94,6 +106,10 @@ function preload() {
     // -- Acteurs Vivants --
 
     preloadCharacters(this);
+
+    // -- Attacks --
+
+    preloadAttacks(this);
 
     // -- Items --
 
@@ -154,7 +170,10 @@ function update() {
     upgradeUI();                // Le HUD se met à jour
     deplacementsPlayer();       // Le player se déplace (ZQSD/LStick)
     playerMoves();              // Le joueur bouge
+    lifeManagement();
     lockOpener();               // Vérifie si on ouvre les verrous
+    fireAttack();
+    LightningAttack();
 
 
 }
@@ -193,6 +212,17 @@ function preloadUI(context){
     context.load.image('fireIcon', 'assets/UI/FireIcon.png');
     context.load.image('lightningIcon', 'assets/UI/LightningIcon.png');
     context.load.image('stairIcon', 'assets/UI/StairIcon.png');
+    context.load.image('lifeIcon', 'assets/UI/LifeIcon.png');
+}
+
+function preloadAttacks(context){
+    context.load.image('fireAttack', 'assets/fireAttack.png');
+    context.load.image('lightningAttackUp', 'assets/lightningAttackUp.png');
+    context.load.image('lightningAttackRight', 'assets/lightningAttackRight.png');
+    context.load.image('lightningAttackDown', 'assets/lightningAttackDown.png');
+    context.load.image('lightningAttackLeft', 'assets/lightningAttackLeft.png');
+    context.load.image('gatorAttack', 'assets/gatorAttack.png');
+    context.load.image('redGatorAttack', 'assets/redGatorAttack.png');
 }
 
 
@@ -308,6 +338,20 @@ function initUi(context) {
         .setDepth(10)
         .setScrollFactor(0)
         .setOrigin(1, 0);
+
+    uiHp0 =  context.add.image(1910, 1070, 'lifeIcon')
+        .setDepth(10)
+        .setOrigin(1,1)
+        .setScrollFactor(0);
+    uiHp0 =  context.add.image(1820, 1070, 'lifeIcon')
+        .setDepth(10)
+        .setOrigin(1,1)
+        .setScrollFactor(0);
+    uiHp0 =  context.add.image(1730, 1070, 'lifeIcon')
+        .setDepth(10)
+        .setOrigin(1,1)
+        .setScrollFactor(0);
+
 } //Ce qui se trouve dans la fonction Create et qui concerne l'UI
 
 
@@ -339,6 +383,9 @@ function initPlayer(context){
     playerLightning = 0;
     playerFire = 0;
     currentFloor = 1;
+
+
+    attackCount = 0;
 }
 
 
@@ -548,7 +595,7 @@ function pickupKey(){
 
 
 function pickupMoney(){
-    var value = this.Math.integerInRange(100, 300)
+    var value = Phaser.Math.Between(100, 300)
     playerMoney += value;
     moneyItem.destroy();
 }
@@ -568,6 +615,22 @@ function pickupLightning(){
 
 function pickupStair(){
     console.log("EEEE T'ES A L'ESCALIER");
+}
+
+function fireAttack(){
+    
+}
+
+
+function LightningAttack(){
+
+}
+
+
+function lifeManagement(){
+    if (playerHp == 2)  uiHp2.destroy();
+    else if (playerHp == 1)  uiHp1.destroy();
+    else if (playerHp == 0)  uiHp0.destroy();
 }
 
 
