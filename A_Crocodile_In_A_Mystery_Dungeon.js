@@ -1,5 +1,5 @@
 // LES COLLISIONS CONTRE LES MURS NE FONCTIONNENT PAS
-// SI HAUT/BAS SONT APPUYES ALORS QU'UN DEPLACEMENT VERS GAUCHE/DROITE N'EST PAS FINI, LE JOUEUR SERA BLOQUE
+// SI HAUT/BAS SONT APPUYéS ALORS QU'UN DEPLACEMENT VERS GAUCHE/DROITE N'EST PAS FINI, LE JOUEUR SERA BLOQUé
 
 
 ////////// CONFIG //////////
@@ -15,7 +15,7 @@ const config         = {
         default      : 'arcade',
         arcade       : {
             //gravity: {},
-            debug    : false
+            debug    : true
         }
     },
     input            : {
@@ -42,6 +42,7 @@ var debugText;
 var cursors;
 var fireInput;
 var lightningInput;
+var sprintInput;
 
 var colChecker;
 var colCheckerReturns;
@@ -85,8 +86,16 @@ var playerIsAttacking;
 
 var attackCount;
 
-// -- Ennem1 --
+// -- Enemy --
 
+var enemy;
+
+var enemyCurrentX;
+var enemyNextX;
+var enemyCurrentY;
+var enemyNextY;
+
+var enemyHp;
 
 // -- Items --
 
@@ -205,6 +214,11 @@ function preloadCharacters(context){
         frameHeight: 100
     });
     context.load.image('shadow', 'assets/player/shadow.png');
+
+    context.load.spritesheet('enemy', 'assets/player/gatorRouge.png', {
+        frameWidth : 100,
+        frameHeight: 100
+    });
 }
 
 
@@ -257,13 +271,10 @@ function initDebug(context) {
             .setDepth(11);
 
         //printCases(context, 31, 8, 94, 55); // Affiche les coordonnées des cases entre [departX;departY] et [arriveeX;arriveeY]
-        printCases(context, 34,24,44,30);
-        printCases(context, 33,49,43,55);
+
         printCases(context, 53,38,61,44);
         printCases(context, 48,10,58,16);
-        printCases(context, 66,20,76,26);
-        printCases(context, 78,31,86,37);
-        printCases(context, 80,44,90,50);
+
 
         colChecker.alpha = 1;
     }
@@ -363,7 +374,7 @@ function initUi(context) {
         .setOrigin(1,1)
         .setScrollFactor(0);
 
-    indications = context.add.text(caseXToCoord(49) - 40, caseYToCoord(36),'Move: ZQSD\nFire Attack : A\nLightning Attack: E AND a direction\nPlay in fullscreen(F11)' ,{fontSize: '32px'})
+    indications = context.add.text(caseXToCoord(49) - 40, caseYToCoord(36),'Move: ZQSD\nFire Attack : A\nLightning Attack: E AND a direction\nGo to the stairs\nPlay in fullscreen(F11)' ,{fontSize: '32px'})
     .setOrigin(0,0)
     .setDepth(2);
 } //Ce qui se trouve dans la fonction Create et qui concerne l'UI
@@ -378,11 +389,12 @@ function initInputs(context){
     });
     fireInput = context.input.keyboard.addKey('A');
     lightningInput = context.input.keyboard.addKey('E');
+    sprintInput = context.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 }
 
 
 function initPlayer(context){
-    shadow = context.add.image(caseXToCoord(7), caseYToCoord(4) + 15, 'shadow')
+    shadow = context.add.image(caseXToCoord(57), caseYToCoord(41) + 15, 'shadow')
         .setOrigin(.5, 1)
         .setDepth(1);
     player = context.physics.add.sprite(caseXToCoord(57), caseYToCoord(41), 'player')
@@ -401,22 +413,39 @@ function initPlayer(context){
     currentFloor = 1;
     playerHp = 3;
 
-
     attackCount = 0;
+
+    if (config.physics.arcade.debug) {
+        playerFire = 90;
+        playerLightning = 90;
+    }
+
+    //enemy
+
+    enemy = context.physics.add.sprite(caseXToCoord(53), caseYToCoord(39), 'enemy')
+        .setOrigin(.5, 1)
+        .setDepth(1);;
+
+    /*enemyCurrentX;
+    enemyNextX;
+    enemyCurrentY;
+    enemyNextY;
+
+    enemyHp;*/
 }
 
 
 function initItems(context){
-    keyItem = context.physics.add.sprite(caseXToCoord(89), caseYToCoord(47), 'key')
+    keyItem = context.physics.add.sprite(caseXToCoord(59), caseYToCoord(38), 'key')
     .setOrigin(.5, 1)
     .setDepth(2);
-    moneyItem = context.physics.add.sprite(caseXToCoord(40), caseYToCoord(53), 'money')
+    moneyItem = context.physics.add.sprite(caseXToCoord(60), caseYToCoord(42), 'money')
     .setOrigin(.5, 1)
     .setDepth(2);
-    fireItem = context.physics.add.sprite(caseXToCoord(40), caseYToCoord(28), 'fire')
+    fireItem = context.physics.add.sprite(caseXToCoord(53), caseYToCoord(42), 'fire')
     .setOrigin(.5, 1)
     .setDepth(2);
-    lightningItem = context.physics.add.sprite(caseXToCoord(72), caseYToCoord(21), 'lightning')
+    lightningItem = context.physics.add.sprite(caseXToCoord(55), caseYToCoord(38), 'lightning')
     .setOrigin(.5, 1)
     .setDepth(2);
     stairItem = context.physics.add.sprite(caseXToCoord(58), caseYToCoord(16) +25, 'stair')
@@ -630,15 +659,21 @@ function pickupLightning(){
 
 
 function pickupStair(){
-    console.log("EEEE T'ES A L'ESCALIER");
+}
+
+function sprint(){
+    if(sprintInput.isDown) playerWalkspeed = 10;
+    else    playerWalkspeed = 5;
 }
 
 function fireAttack(context){
     if (playerFire > 0){
         if (fireInput.isDown && attackCount == 0){
             playerIsFireAttacking = true;
-            fireAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x) - 1) - 50, caseYToCoord(getCaseY(player.y) - 1) - 75, 'fireAttack')
-            .setOrigin(0, 0);
+            fireAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) - 1) - 50, caseYToCoord(getCaseY(player.y) - 1) - 75, 'fireAttack')
+            .setOrigin(0, 0)
+            .setDepth(5);
+            context.physics.add.collider(fireAttackSprite, enemy, enemyHurtFire);
             attackCount ++;
             playerFire --;
         }
@@ -656,26 +691,34 @@ function LightningAttack(context){
     if (playerLightning > 0){
         if (lightningInput.isDown && attackCount == 0){
             if (cursors.left.isDown){
-                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x) - 1) + 50, caseYToCoord(getCaseY(player.y)-1) - 75, 'lightningAttackLeft')    
-                .setOrigin(1, 0);
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) - 1) + 50, caseYToCoord(getCaseY(player.y)-1) - 75, 'lightningAttackLeft')    
+                .setOrigin(1, 0)
+                .setDepth(5);
+                context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
                 playerLightning --;
                 attackCount++;
                 playerIsLightningAttacking = true;
             } else if (cursors.up.isDown){
-                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x)-1) - 50, caseYToCoord(getCaseY(player.y)) - 75, 'lightningAttackUp')    
-                .setOrigin(0, 1);
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x)-1) - 50, caseYToCoord(getCaseY(player.y)) - 75, 'lightningAttackUp')    
+                .setOrigin(0, 1)
+                .setDepth(5);
+                context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
                 playerLightning --;
                 attackCount++;
                 playerIsLightningAttacking = true;
             } else if (cursors.right.isDown){
-                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x) + 1) - 50, caseYToCoord(getCaseY(player.y) -1 ) - 75, 'lightningAttackRight')    
-                .setOrigin(0, 0);
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) + 1) - 50, caseYToCoord(getCaseY(player.y) -1 ) - 75, 'lightningAttackRight')    
+                .setOrigin(0, 0)
+                .setDepth(5);
+                context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
                 playerLightning --;
                 attackCount++;
                 playerIsLightningAttacking = true;
             } else if (cursors.down.isDown){
-                lightningAttackSprite = context.add.sprite(caseXToCoord(getCaseX(player.x)+2) - 50, caseYToCoord(getCaseY(player.y) + 1) - 75, 'lightningAttackDown')    
-                .setOrigin(1, 0);
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x)+2) - 50, caseYToCoord(getCaseY(player.y) + 1) - 75, 'lightningAttackDown')    
+                .setOrigin(1, 0)
+                .setDepth(5);
+                context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
                 playerLightning --;
                 attackCount++;
                 playerIsLightningAttacking = true;
@@ -689,6 +732,14 @@ function LightningAttack(context){
         playerIsLightningAttacking = false;
         lightningAttackSprite.destroy();
     }
+}
+
+
+function enemyHurtFire(){
+}
+
+
+function enemyHurtLightning(){
 }
 
 
