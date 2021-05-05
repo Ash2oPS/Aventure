@@ -1,33 +1,48 @@
-// LES COLLISIONS CONTRE LES MURS NE FONCTIONNENT PAS
+
+
+
 // SI HAUT/BAS SONT APPUYéS ALORS QU'UN DEPLACEMENT VERS GAUCHE/DROITE N'EST PAS FINI, LE JOUEUR SERA BLOQUé
+
+// LES COLLISIONS CONTRE LES MURS NE FONCTIONNENT PAS
+// Le jeu étant un jeu a déplacement case par case, je ne souhaitais pas utiliser un système de collisions classique
+// C'est pourquoi j'utilise un objet que j'ai appelé CollisionChecker, un petit sprite visible si debug == true, qui
+// se tp sur la case vers laquelle l'acteur s'apprête à se déplacer. Renvoyant ainsi une information permettant à l'
+// acteur de savoir si qui se trouve sur la case en question. 
+// L'idée des collisions aurait été de mettre un collider overlap entre le collision checker et le layer Wall de la map
+// afin de vérifier si le joueur/ennemi peut se déplacer vers la direction souhaitée.
+// Pour une raison inconnue je n'ai jamais réussi à coder cet overlap
+
+// Malgré que l'on a eu sur ces sujets, je n'ai pas été en mesure d'ajouter des inputs à la manette ainsi qu'un système
+// de scènes
+
 
 
 ////////// CONFIG //////////
 
-const screenWidth    = 1920;
-const screenHeight   = 1080;
+const screenWidth = 1920;
+const screenHeight = 1080;
 
-const config         = {
-    width            : screenWidth,
-    height           : screenHeight,
-    type             : Phaser.AUTO,
-    physics          : {
-        default      : 'arcade',
-        arcade       : {
+const config = {
+    width: screenWidth,
+    height: screenHeight,
+    type: Phaser.AUTO,
+    physics: {
+        default: 'arcade',
+        arcade: {
             //gravity: {},
-            debug    : true
+            debug: false
         }
     },
-    input            : {
-        gamepad      : true
+    input: {
+        gamepad: true
     },
-    scene            : {
-        preload      : preload,
-        create       : create,
-        update       : update
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
     },
-    scale            : {
-        zoom         : 1,
+    scale: {
+        zoom: 1,
     }
 }
 
@@ -90,12 +105,20 @@ var attackCount;
 
 var enemy;
 
+var enemyDirection;
+
 var enemyCurrentX;
 var enemyNextX;
 var enemyCurrentY;
 var enemyNextY;
 
 var enemyHp;
+var enemyInvincible;
+var enemyInvincibleCount;
+
+var enemyLoot;
+var enemyLootType;
+var enemyMort;
 
 // -- Items --
 
@@ -134,7 +157,7 @@ function preload() {
     // -- Items --
 
     preloadItems(this);
-    
+
     // -- UI --
 
     preloadUI(this);
@@ -187,13 +210,16 @@ function update() {
 
     //
 
-    upgradeUI();                // Le HUD se met à jour
-    deplacementsPlayer();       // Le player se déplace (ZQSD/LStick)
-    playerMoves();              // Le joueur bouge
+    upgradeUI(); // Le HUD se met à jour
+    deplacementsPlayer(); // Le player se déplace (ZQSD/LStick)
+    playerMoves(); // Le joueur bouge
+    enemyMoves(); // L'ennemi bouge
     lifeManagement();
-    lockOpener();               // Vérifie si on ouvre les verrous
+    lockOpener(); // Vérifie si on ouvre les verrous
     fireAttack(this);
     LightningAttack(this);
+    enemyInvincibleManagement();
+    enemyDeath(this);
 
 
 }
@@ -201,28 +227,28 @@ function update() {
 
 ////////// FUNCTIONS //////////
 
-function preloadTiled(context){
+function preloadTiled(context) {
     context.load.image('colChecker', 'ColChecker.png')
     context.load.image('tiles', 'assets/Tiled/Tileset.png');
     context.load.tilemapTiledJSON('map', 'assets/Tiled/map0A.json');
 }
 
 
-function preloadCharacters(context){
+function preloadCharacters(context) {
     context.load.spritesheet('player', 'assets/player/gator.png', {
-        frameWidth : 100,
+        frameWidth: 100,
         frameHeight: 100
     });
     context.load.image('shadow', 'assets/player/shadow.png');
 
     context.load.spritesheet('enemy', 'assets/player/gatorRouge.png', {
-        frameWidth : 100,
+        frameWidth: 100,
         frameHeight: 100
     });
 }
 
 
-function preloadItems(context){
+function preloadItems(context) {
     context.load.image('key', 'assets/items/key.png');
     context.load.image('money', 'assets/items/money.png');
     context.load.image('fire', 'assets/items/fire.png');
@@ -231,7 +257,7 @@ function preloadItems(context){
 }
 
 
-function preloadUI(context){
+function preloadUI(context) {
     context.load.image('keyIcon', 'assets/UI/KeyIcon.png');
     context.load.image('moneyIcon', 'assets/UI/MoneyIcon.png');
     context.load.image('fireIcon', 'assets/UI/FireIcon.png');
@@ -240,7 +266,7 @@ function preloadUI(context){
     context.load.image('lifeIcon', 'assets/UI/LifeIcon.png');
 }
 
-function preloadAttacks(context){
+function preloadAttacks(context) {
     context.load.image('fireAttack', 'assets/fireAttack.png');
     context.load.image('lightningAttackUp', 'assets/lightningAttackUp.png');
     context.load.image('lightningAttackRight', 'assets/lightningAttackRight.png');
@@ -253,8 +279,8 @@ function preloadAttacks(context){
 
 function initDebug(context) {
     colChecker = context.physics.add.sprite(caseXToCoord(0), caseYToCoord(0), 'colChecker')
-    .setOrigin(.5, 1)
-    .setDepth(12);
+        .setOrigin(.5, 1)
+        .setDepth(12);
     colChecker.alpha = 0;
     if (config.physics.arcade.debug) {
         debugText = context.add.text(0, 935, "bonjour, ça va ? super", {
@@ -272,8 +298,8 @@ function initDebug(context) {
 
         //printCases(context, 31, 8, 94, 55); // Affiche les coordonnées des cases entre [departX;departY] et [arriveeX;arriveeY]
 
-        printCases(context, 53,38,61,44);
-        printCases(context, 48,10,58,16);
+        printCases(context, 53, 38, 61, 44);
+        printCases(context, 48, 10, 58, 16);
 
 
         colChecker.alpha = 1;
@@ -361,26 +387,28 @@ function initUi(context) {
         .setScrollFactor(0)
         .setOrigin(1, 0);
 
-    uiHp0 =  context.add.image(1910, 1070, 'lifeIcon')
+    uiHp0 = context.add.image(1910, 1070, 'lifeIcon')
         .setDepth(10)
-        .setOrigin(1,1)
+        .setOrigin(1, 1)
         .setScrollFactor(0);
-    uiHp0 =  context.add.image(1820, 1070, 'lifeIcon')
+    uiHp0 = context.add.image(1820, 1070, 'lifeIcon')
         .setDepth(10)
-        .setOrigin(1,1)
+        .setOrigin(1, 1)
         .setScrollFactor(0);
-    uiHp0 =  context.add.image(1730, 1070, 'lifeIcon')
+    uiHp0 = context.add.image(1730, 1070, 'lifeIcon')
         .setDepth(10)
-        .setOrigin(1,1)
+        .setOrigin(1, 1)
         .setScrollFactor(0);
 
-    indications = context.add.text(caseXToCoord(49) - 40, caseYToCoord(36),'Move: ZQSD\nFire Attack : A\nLightning Attack: E AND a direction\nGo to the stairs\nPlay in fullscreen(F11)' ,{fontSize: '32px'})
-    .setOrigin(0,0)
-    .setDepth(2);
+    indications = context.add.text(caseXToCoord(49) - 40, caseYToCoord(36), 'Move: ZQSD\nFire Attack : A\nLightning Attack: E AND a direction\nGo to the stairs\nPlay in fullscreen(F11)', {
+            fontSize: '32px'
+        })
+        .setOrigin(0, 0)
+        .setDepth(2);
 } //Ce qui se trouve dans la fonction Create et qui concerne l'UI
 
 
-function initInputs(context){
+function initInputs(context) {
     cursors = context.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.Z,
         down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -393,7 +421,7 @@ function initInputs(context){
 }
 
 
-function initPlayer(context){
+function initPlayer(context) {
     shadow = context.add.image(caseXToCoord(57), caseYToCoord(41) + 15, 'shadow')
         .setOrigin(.5, 1)
         .setDepth(1);
@@ -424,43 +452,47 @@ function initPlayer(context){
 
     enemy = context.physics.add.sprite(caseXToCoord(53), caseYToCoord(39), 'enemy')
         .setOrigin(.5, 1)
-        .setDepth(1);;
+        .setDepth(1);
 
-    /*enemyCurrentX;
-    enemyNextX;
-    enemyCurrentY;
-    enemyNextY;
+    enemyCurrentX = 0;
+    enemyNextX = 0;
+    enemyCurrentY = 0;
+    enemyNextY = 0;
 
-    enemyHp;*/
+    enemyHp = 3;
+
+    enemyInvincible = false;
+    enemyInvincibleCount = 0;
+    enemyMort = false;
 }
 
 
-function initItems(context){
+function initItems(context) {
     keyItem = context.physics.add.sprite(caseXToCoord(59), caseYToCoord(38), 'key')
-    .setOrigin(.5, 1)
-    .setDepth(2);
+        .setOrigin(.5, 1)
+        .setDepth(2);
     moneyItem = context.physics.add.sprite(caseXToCoord(60), caseYToCoord(42), 'money')
-    .setOrigin(.5, 1)
-    .setDepth(2);
+        .setOrigin(.5, 1)
+        .setDepth(2);
     fireItem = context.physics.add.sprite(caseXToCoord(53), caseYToCoord(42), 'fire')
-    .setOrigin(.5, 1)
-    .setDepth(2);
+        .setOrigin(.5, 1)
+        .setDepth(2);
     lightningItem = context.physics.add.sprite(caseXToCoord(55), caseYToCoord(38), 'lightning')
-    .setOrigin(.5, 1)
-    .setDepth(2);
-    stairItem = context.physics.add.sprite(caseXToCoord(58), caseYToCoord(16) +25, 'stair')
-    .setOrigin(.5, 1)
-    .setDepth(2);
+        .setOrigin(.5, 1)
+        .setDepth(2);
+    stairItem = context.physics.add.sprite(caseXToCoord(58), caseYToCoord(16) + 25, 'stair')
+        .setOrigin(.5, 1)
+        .setDepth(2);
 }
 
 
-function initCamera(context){
+function initCamera(context) {
     context.cameras.main.startFollow(player);
     context.cameras.main.setBounds(0, 0, player.widthInPixels, player.heightInPixels);
 }
 
 
-function initTiled(context){
+function initTiled(context) {
     map = context.make.tilemap({
         key: 'map'
     });
@@ -470,8 +502,8 @@ function initTiled(context){
     wall_Layer = map.createLayer('Wall', tileset);
     locks_Layer = map.createLayer('Locks', tileset);
 
-    map.setCollisionByExclusion(-1,true, true, 'Wall');
-    map.setCollisionByExclusion(-1,true, true, 'Ground');
+    map.setCollisionByExclusion(-1, true, true, 'Wall');
+    map.setCollisionByExclusion(-1, true, true, 'Ground');
     //locks_Layer.setCollisionByExclusion(-1,true);
     //this.physics.add.collider
     context.physics.add.collider(colChecker, wall_Layer, colCheckerWall);
@@ -482,7 +514,7 @@ function initTiled(context){
     context.physics.add.collider(colChecker, fireItem, pickupFire);
     context.physics.add.collider(colChecker, lightningItem, pickupLightning);
     context.physics.add.collider(colChecker, stairItem, pickupStair);
-    
+
 } //Ce qui se trouve dans la fonction Create et qui concerne Tiled (et les collisions du jeu)
 
 
@@ -507,9 +539,12 @@ function printCases(context, departX, departY, arriveeX, arriveeY) {
 function debugDisplay(config) {
     if (config.physics.arcade.debug) {
         debugText.setText('player is moving : ' + playerIsMoving + ' currentX : ' + currentX + ' nextX : ' + nextX + '; currentY : ' + currentY + ' nextY : ' + nextY +
-            '\nplayer current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']'+
-            '\n colChecker current Case : [' + getCaseX(colChecker.x) + ';' + getCaseY(colChecker.y) + '] + returns : ' + colCheckerReturns + 
-            '\nAttackCount : ' + attackCount);
+            '\nplayer current Case : [' + getCaseX(player.x) + ';' + getCaseY(player.y) + ']' +
+            '\n colChecker current Case : [' + getCaseX(colChecker.x) + ';' + getCaseY(colChecker.y) + '] + returns : ' + colCheckerReturns +
+            '\nAttackCount : ' + attackCount +
+            '\nenemyDirection : ' + enemyDirection + ' enemyCurrentX ' + enemyCurrentX + ' enemyNextX : ' + enemyNextX +
+            '\nenemyCurrentY : ' + enemyCurrentY + ' enemyNextY : ' + enemyNextY +
+            '\nenemyHp : ' + enemyHp + ' enemyInvincible : ' + enemyInvincible + ' enemyInvincibleCount ' + enemyInvincibleCount + enemy);
     }
 
 } //What's in the Update Event and that's about the custom debugger
@@ -530,28 +565,47 @@ function deplacementsPlayer() {
 
     if (!playerIsMoving && !lightningInput.isDown) {
         if (cursors.right.isDown) {
-            colCheckerMoves(caseXToCoord(getCaseX(player.x)+1), caseYToCoord(getCaseY(player.y))-10);
+            colCheckerMoves(caseXToCoord(getCaseX(player.x) + 1), caseYToCoord(getCaseY(player.y)) - 10);
             currentX = player.x;
             nextX = player.x + 100;
             playerIsMoving = true;
-        }else if (cursors.left.isDown) {
-            colCheckerMoves(caseXToCoord(getCaseX(player.x)-1), caseYToCoord(getCaseY(player.y))-10);
+            if (enemyHp > 0) {
+                enemyDirection = Phaser.Math.Between(1, 4);
+                enemyCurrentX = enemy.x;
+                enemyCurrentY = enemy.y;
+            }
+        } else if (cursors.left.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x) - 1), caseYToCoord(getCaseY(player.y)) - 10);
             currentX = player.x;
             nextX = player.x - 100;
             playerIsMoving = true;
-        }else if (cursors.down.isDown) {
-            colCheckerMoves(caseXToCoord(getCaseX(player.x)), caseYToCoord(getCaseY(player.y)+1)-10);
+            if (enemyHp > 0) {
+                enemyDirection = Phaser.Math.Between(1, 4);
+                enemyCurrentX = enemy.x;
+                enemyCurrentY = enemy.y;
+            }
+        } else if (cursors.down.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x)), caseYToCoord(getCaseY(player.y) + 1) - 10);
             currentY = player.y;
             nextY = player.y + 100;
             playerIsMoving = true;
-        }else if (cursors.up.isDown) {
-            colCheckerMoves(caseXToCoord(getCaseX(player.x)), caseYToCoord(getCaseY(player.y)-1)-10);
+            if (enemyHp > 0) {
+                enemyDirection = Phaser.Math.Between(1, 4);
+                enemyCurrentX = enemy.x;
+                enemyCurrentY = enemy.y;
+            }
+        } else if (cursors.up.isDown) {
+            colCheckerMoves(caseXToCoord(getCaseX(player.x)), caseYToCoord(getCaseY(player.y) - 1) - 10);
             currentY = player.y;
             nextY = player.y - 100;
             playerIsMoving = true;
+            if (enemyHp > 0) {
+                enemyDirection = Phaser.Math.Between(1, 4);
+                enemyCurrentX = enemy.x;
+                enemyCurrentY = enemy.y;
+            }
         }
     }
-
 
 }
 
@@ -608,126 +662,181 @@ function playerMoves() {
         currentY = 0;
         nextY = 0;
     }
+
 }
 
 
-function colCheckerMoves(caseX, caseY){
+function enemyMoves() {
+    if (enemyHp > 0) {
+        if (playerIsMoving) {
+
+            if (enemyDirection == 1) {
+                enemyNextY = enemyCurrentY - 100;
+                if (enemyCurrentY >= enemyNextY) {
+                    enemy.y -= playerWalkspeed;
+                }
+            } else if (enemyDirection == 2) {
+                enemyNextX = enemyCurrentX + 100;
+                if (enemyCurrentX <= enemyNextX) {
+                    enemy.x += playerWalkspeed;
+                }
+            } else if (enemyDirection == 3) {
+                enemyNextY = enemyCurrentY + 100;
+                if (enemyCurrentY <= enemyNextY) {
+                    enemy.y += playerWalkspeed;
+                }
+            } else {
+                enemyNextX = enemyCurrentX - 100;
+                if (enemyCurrentX >= enemyNextX) {
+                    enemy.x -= playerWalkspeed;
+                }
+            }
+
+        } else {
+            enemyCurrentX = 0;
+            enemyNextX = 0;
+            enemyCurrentY = 0;
+            enemyNextY = 0;
+        }
+    }
+}
+
+
+function colCheckerMoves(caseX, caseY) {
     colChecker.x = caseX;
     colChecker.y = caseY;
 }
 
 
-function colCheckerMovesBack(){
+function colCheckerMovesBack() {
     colCheckerReturns = false;
 }
 
 
-function lockOpener(){
-    if (getCaseX(player.x) == 46 && getCaseY(player.y) == 13 && playerKey > 0){
-        playerKey --;
+function lockOpener() {
+    if (getCaseX(player.x) == 46 && getCaseY(player.y) == 13 && playerKey > 0) {
+        playerKey--;
         locks_Layer.destroy();
-    }else if (getCaseX(player.x) == 60 && getCaseY(player.y) == 12 && playerKey > 0){
-        playerKey --;
+    } else if (getCaseX(player.x) == 60 && getCaseY(player.y) == 12 && playerKey > 0) {
+        playerKey--;
         locks_Layer.destroy();
     }
 }
 
 
-function pickupKey(){
+function pickupKey() {
     playerKey++;
     keyItem.destroy();
 }
 
 
-function pickupMoney(){
+function pickupMoney() {
     var value = Phaser.Math.Between(100, 300)
     playerMoney += value;
     moneyItem.destroy();
 }
 
 
-function pickupFire(){
+function pickupFire() {
     playerFire += 3;
     fireItem.destroy();
 }
 
 
-function pickupLightning(){
+function pickupLightning() {
     playerLightning++;
     lightningItem.destroy();
 }
 
 
-function pickupStair(){
+function pickupLootMoney() {
+    var value = Phaser.Math.Between(100, 300)
+    playerMoney += value;
+    enemyLoot.destroy();
 }
 
-function sprint(){
-    if(sprintInput.isDown) playerWalkspeed = 10;
-    else    playerWalkspeed = 5;
+
+function pickupLootFire() {
+    playerFire += 3;
+    enemyLoot.destroy();
 }
 
-function fireAttack(context){
-    if (playerFire > 0){
-        if (fireInput.isDown && attackCount == 0){
+
+function pickupLootLightning() {
+    playerLightning++;
+    enemyLoot.destroy();
+}
+
+
+function pickupStair() {}
+
+function sprint() {
+    if (sprintInput.isDown) playerWalkspeed = 10;
+    else playerWalkspeed = 5;
+}
+
+function fireAttack(context) {
+    if (playerFire > 0) {
+        if (fireInput.isDown && attackCount == 0) {
             playerIsFireAttacking = true;
             fireAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) - 1) - 50, caseYToCoord(getCaseY(player.y) - 1) - 75, 'fireAttack')
-            .setOrigin(0, 0)
-            .setDepth(5);
+                .setOrigin(0, 0)
+                .setDepth(5);
             context.physics.add.collider(fireAttackSprite, enemy, enemyHurtFire);
-            attackCount ++;
-            playerFire --;
+            attackCount++;
+            playerFire--;
         }
     }
-    if (playerIsFireAttacking)  attackCount ++;
-    if (attackCount >= 45){
+    if (playerIsFireAttacking) attackCount++;
+    if (attackCount >= 45) {
         attackCount = 0;
         playerIsFireAttacking = false;
         fireAttackSprite.destroy();
-    }    
+    }
 }
 
 
-function LightningAttack(context){
-    if (playerLightning > 0){
-        if (lightningInput.isDown && attackCount == 0){
-            if (cursors.left.isDown){
-                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) - 1) + 50, caseYToCoord(getCaseY(player.y)-1) - 75, 'lightningAttackLeft')    
-                .setOrigin(1, 0)
-                .setDepth(5);
+function LightningAttack(context) {
+    if (playerLightning > 0) {
+        if (lightningInput.isDown && attackCount == 0) {
+            if (cursors.left.isDown) {
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) - 1) + 50, caseYToCoord(getCaseY(player.y) - 1) - 75, 'lightningAttackLeft')
+                    .setOrigin(1, 0)
+                    .setDepth(5);
                 context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
-                playerLightning --;
+                playerLightning--;
                 attackCount++;
                 playerIsLightningAttacking = true;
-            } else if (cursors.up.isDown){
-                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x)-1) - 50, caseYToCoord(getCaseY(player.y)) - 75, 'lightningAttackUp')    
-                .setOrigin(0, 1)
-                .setDepth(5);
+            } else if (cursors.up.isDown) {
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) - 1) - 50, caseYToCoord(getCaseY(player.y)) - 75, 'lightningAttackUp')
+                    .setOrigin(0, 1)
+                    .setDepth(5);
                 context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
-                playerLightning --;
+                playerLightning--;
                 attackCount++;
                 playerIsLightningAttacking = true;
-            } else if (cursors.right.isDown){
-                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) + 1) - 50, caseYToCoord(getCaseY(player.y) -1 ) - 75, 'lightningAttackRight')    
-                .setOrigin(0, 0)
-                .setDepth(5);
+            } else if (cursors.right.isDown) {
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) + 1) - 50, caseYToCoord(getCaseY(player.y) - 1) - 75, 'lightningAttackRight')
+                    .setOrigin(0, 0)
+                    .setDepth(5);
                 context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
-                playerLightning --;
+                playerLightning--;
                 attackCount++;
                 playerIsLightningAttacking = true;
-            } else if (cursors.down.isDown){
-                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x)+2) - 50, caseYToCoord(getCaseY(player.y) + 1) - 75, 'lightningAttackDown')    
-                .setOrigin(1, 0)
-                .setDepth(5);
+            } else if (cursors.down.isDown) {
+                lightningAttackSprite = context.physics.add.sprite(caseXToCoord(getCaseX(player.x) + 2) - 50, caseYToCoord(getCaseY(player.y) + 1) - 75, 'lightningAttackDown')
+                    .setOrigin(1, 0)
+                    .setDepth(5);
                 context.physics.add.collider(lightningAttackSprite, enemy, enemyHurtLightning);
-                playerLightning --;
+                playerLightning--;
                 attackCount++;
                 playerIsLightningAttacking = true;
             }
-            
+
         }
     }
-    if (playerIsLightningAttacking)  attackCount ++;
-    if (attackCount >= 45 && playerIsLightningAttacking){
+    if (playerIsLightningAttacking) attackCount++;
+    if (attackCount >= 45 && playerIsLightningAttacking) {
         attackCount = 0;
         playerIsLightningAttacking = false;
         lightningAttackSprite.destroy();
@@ -735,27 +844,41 @@ function LightningAttack(context){
 }
 
 
-function enemyHurtFire(){
+function enemyHurtFire() {
+    if (!enemyInvincible) {
+        enemyHp--;
+        if (enemyHp > 0) {
+            enemyInvincible = true;
+        }
+    }
 }
 
 
-function enemyHurtLightning(){
+function enemyHurtLightning() {
+    if (!enemyInvincible) {
+        enemyHp--;
+        if (enemyHp > 0) {
+            enemyInvincible = true;
+        } else {
+            enemy.destroy();
+        }
+    }
 }
 
 
-function lifeManagement(){
-    if (playerHp <= 2 && uiHp2 != null)  uiHp2.destroy();
-    if (playerHp <= 1 && uiHp1 != null)  uiHp1.destroy();
-    if (playerHp == 0 && uiHp0 != null)  uiHp0.destroy();
+function lifeManagement() {
+    if (playerHp <= 2 && uiHp2 != null) uiHp2.destroy();
+    if (playerHp <= 1 && uiHp1 != null) uiHp1.destroy();
+    if (playerHp == 0 && uiHp0 != null) uiHp0.destroy();
 }
 
 
-function colCheckerWall(){
+function colCheckerWall() {
     colCheckerReturns = true;
 }
 
 
-function colCheckerGround(){
+function colCheckerGround() {
     colCheckerReturns = false;
 }
 
@@ -777,4 +900,50 @@ function caseXToCoord(value) {
 
 function caseYToCoord(value) {
     return value * 100 + 75;
+}
+
+
+function enemyInvincibleManagement() {
+    if (enemyInvincible) {
+        if (enemyInvincibleCount != 50) {
+            if (enemyInvincibleCount < 5) enemy.alpha = 0.1;
+            else if (enemyInvincibleCount < 10) enemy.alpha = 1;
+            else if (enemyInvincibleCount < 15) enemy.alpha = 0.1;
+            else if (enemyInvincibleCount < 20) enemy.alpha = 1;
+            else if (enemyInvincibleCount < 25) enemy.alpha = 0.1;
+            else if (enemyInvincibleCount < 30) enemy.alpha = 1;
+            else if (enemyInvincibleCount < 35) enemy.alpha = 0.1;
+            else if (enemyInvincibleCount < 40) enemy.alpha = 1;
+            else if (enemyInvincibleCount < 45) enemy.alpha = 0.1;
+            else enemy.alpha = 1;
+            enemyInvincibleCount++;
+        } else {
+            enemyInvincible = false;
+            enemyInvincibleCount = 0;
+        }
+    }
+}
+
+function enemyDeath(context) {
+    if (enemyHp == 0 && !enemyMort) {
+        enemyLootType = Phaser.Math.Between(1, 3);
+        if (enemyLootType == 1) {
+            enemyLoot = context.physics.add.sprite(caseXToCoord(getCaseX(enemy.x)), caseYToCoord(getCaseY(enemy.y)), 'money')
+                .setOrigin(.5, 1)
+                .setDepth(2);
+            context.physics.add.collider(colChecker, enemyLoot, pickupLootMoney);
+        } else if (enemyLootType == 2) {
+            enemyLoot = context.physics.add.sprite(caseXToCoord(getCaseX(enemy.x)), caseYToCoord(getCaseY(enemy.y)), 'fire')
+                .setOrigin(.5, 1)
+                .setDepth(2);
+            context.physics.add.collider(colChecker, enemyLoot, pickupLootFire);
+        } else if (enemyLootType == 3) {
+            enemyLoot = context.physics.add.sprite(caseXToCoord(getCaseX(enemy.x)), caseYToCoord(getCaseY(enemy.y)), 'lightning')
+                .setOrigin(.5, 1)
+                .setDepth(2);
+            context.physics.add.collider(colChecker, enemyLoot, pickupLootLightning);
+        }
+        enemyMort = true;
+        enemy.destroy();
+    }
 }
